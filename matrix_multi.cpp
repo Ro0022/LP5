@@ -1,84 +1,64 @@
-// Matrix Multiplication using CUDA
-// Compile:
-// nvcc matrix_mul.cu -o matrix_mul
-//
-// Run:
-// ./matrix_mul
-
 #include <iostream>
 #include <cuda_runtime.h>
 
 using namespace std;
 
-#define N 3
+#define N 2
 
-__global__ void matrixMul(int *A, int *B, int *C)
-{
-    int row = threadIdx.y;
-    int col = threadIdx.x;
+__global__ void matrixMultiply(int A[N][N], int B[N][N], int C[N][N]) {
 
-    int sum = 0;
+    int row = threadIdx.x;
+    int col = threadIdx.y;
 
-    for (int k = 0; k < N; k++)
-    {
-        sum += A[row * N + k] * B[k * N + col];
+    C[row][col] = 0;
+
+    for (int k = 0; k < N; k++) {
+
+        C[row][col] += A[row][k] * B[k][col];
     }
-
-    C[row * N + col] = sum;
 }
 
-int main()
-{
-    int size = N * N * sizeof(int);
+int main() {
 
-    // Host matrices
-    int h_A[N][N] = {
-        {1, 2, 3},
-        {4, 5, 6},
-        {7, 8, 9}
+    int A[N][N] = {
+        {1, 2},
+        {3, 4}
     };
 
-    int h_B[N][N] = {
-        {9, 8, 7},
-        {6, 5, 4},
-        {3, 2, 1}
+    int B[N][N] = {
+        {5, 6},
+        {7, 8}
     };
 
-    int h_C[N][N];
+    int C[N][N];
 
-    // Device matrices
-    int *d_A, *d_B, *d_C;
+    int (*d_A)[N];
+    int (*d_B)[N];
+    int (*d_C)[N];
 
-    cudaMalloc((void**)&d_A, size);
-    cudaMalloc((void**)&d_B, size);
-    cudaMalloc((void**)&d_C, size);
+    cudaMalloc(&d_A, sizeof(A));
+    cudaMalloc(&d_B, sizeof(B));
+    cudaMalloc(&d_C, sizeof(C));
 
-    // Copy matrices to device
-    cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_A, A, sizeof(A), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, B, sizeof(B), cudaMemcpyHostToDevice);
 
-    // Define block size
-    dim3 threadsPerBlock(N, N);
+    matrixMultiply<<<1, dim3(N, N)>>>(d_A, d_B, d_C);
 
-    // Launch kernel
-    matrixMul<<<1, threadsPerBlock>>>(d_A, d_B, d_C);
+    cudaMemcpy(C, d_C, sizeof(C), cudaMemcpyDeviceToHost);
 
-    // Copy result back
-    cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost);
+    cout << "Result Matrix:\n";
 
-    // Display result
-    cout << "Matrix Multiplication Result:" << endl;
+    for (int i = 0; i < N; i++) {
 
-    for (int i = 0; i < N; i++)
-    {
-        for (int j = 0; j < N; j++)
-        {
-            cout << h_C[i][j] << " ";
+        for (int j = 0; j < N; j++) {
+
+            cout << C[i][j] << " ";
         }
+
         cout << endl;
     }
 
-    // Free memory
     cudaFree(d_A);
     cudaFree(d_B);
     cudaFree(d_C);
