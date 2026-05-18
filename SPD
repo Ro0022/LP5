@@ -1,0 +1,82 @@
+# Google Stock Price Prediction using RNN
+
+# Import Libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN, Dense, Input
+
+# Load Dataset
+df = pd.read_csv("Google_Stock_Price.csv")
+
+# Take Open Price Column
+data = pd.to_numeric(df['Open'], errors='coerce')
+
+# Remove missing values
+data = data.dropna().values.reshape(-1,1)
+
+# Scale Data
+scaler = MinMaxScaler(feature_range=(0,1))
+data = scaler.fit_transform(data)
+
+# Create Training Data
+X = []
+y = []
+
+for i in range(60, len(data)):
+    X.append(data[i-60:i, 0])
+    y.append(data[i, 0])
+
+X = np.array(X)
+y = np.array(y)
+
+# Reshape for RNN
+X = X.reshape(X.shape[0], X.shape[1], 1)
+
+# Build RNN Model
+model = Sequential()
+
+model.add(Input(shape=(60,1)))
+
+model.add(SimpleRNN(units=50))
+
+model.add(Dense(units=1))
+
+# Compile Model
+model.compile(optimizer='adam',
+              loss='mean_squared_error')
+
+# Train Model
+model.fit(X, y,
+          epochs=10,
+          batch_size=32)
+
+# Predict Stock Prices
+predicted = model.predict(X)
+
+# Convert Back to Original Values
+predicted = scaler.inverse_transform(predicted)
+
+real = scaler.inverse_transform(y.reshape(-1,1))
+
+# Plot Graph
+plt.plot(real,
+         color='red',
+         label='Real Price')
+
+plt.plot(predicted,
+         color='blue',
+         label='Predicted Price')
+
+plt.title("Google Stock Price Prediction using RNN")
+
+plt.xlabel("Time")
+
+plt.ylabel("Stock Price")
+
+plt.legend()
+
+plt.show()
